@@ -1,0 +1,30 @@
+index=* source="/var/log/nginx/access.log"
+| rex field=uri "(?i)(?P<cmd_pattern>(;|\|\||&&|\x7C)\s*(cat|whoami|id|uname|wget|curl|nc|bash|sh|ping|netstat))"
+| where isnotnull(cmd_pattern)
+| stats 
+    count as attempt_count,
+    values(cmd_pattern) as payloads,
+    values(uri) as targeted_uris,
+    values(status) as http_responses,
+    earliest(_time) as window_start_epoch,
+    latest(_time) as window_end_epoch
+    by clientip
+| eval 
+    window_start = strftime(window_start_epoch, "%Y-%m-%d %H:%M:%S"),
+    window_end = strftime(window_end_epoch, "%Y-%m-%d %H:%M:%S"),
+    is_successful = if(match(mvjoin(http_responses, " "), "200"), "YES", "NO"),
+    attack_type = case(
+        is_successful == "YES", "Successful OS Command Execution",
+        1==1, "OS Command Injection Attempt"
+    ),
+    severity = case(
+        is_successful == "YES", "CRITICAL",
+        1==1, "HIGH"
+    ),
+    mitre_id = "T1059.004",
+    mitre_technique = "Command and Scripting Interpreter: Unix Shell",
+    mitre_tactic = "TA0002 - Execution",
+    rule_id = "NB-SPL-008",
+    recommended_action = "1. IMMEDIATELY Isolate host if successful (CRITICAL) | 2. Block source IP | 3. Review process execution logs (Sysmon/Auditd) | 4. Avoid passing unsanitized user input to system shells"
+| table window_start, window_end, clientip, attempt_count, is_successful, attack_type, severity, payloads, targeted_uris, http_responses, mitre_id, rule_id, recommended_action
+| sort - severity, - attempt_count
