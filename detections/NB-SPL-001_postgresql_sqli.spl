@@ -1,18 +1,3 @@
-| Commentary ----------------------------------------------------------------
-| Rule ID    : NB-SPL-001
-| Rule Name  : PostgreSQL SQL Injection Detection
-| Author     : SOC Lab Team
-| Date       : 2026-04-18
-| Version    : 1.0
-| MITRE      : T1190 - Exploit Public-Facing Application
-| Tactic     : TA0001 - Initial Access
-| Severity   : MEDIUM / HIGH / CRITICAL
-| Target     : novruzbank.site (Flask + PostgreSQL)
-| Description: Flask/PostgreSQL arxitekturasina xas SQLi patternleri
-|              askarlamaq ucun optimizasiya edilmis rule.
-|              PostgreSQL-e xas funksiyalar (pg_sleep, pg_tables) daxildir.
-| ---------------------------------------------------------------------------
-
 index=web_logs host="novruzbank.site"
 | rex field=uri "(?i)(?P<sqli_pattern>
     (\%27|\')|
