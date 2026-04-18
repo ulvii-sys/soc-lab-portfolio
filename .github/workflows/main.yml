@@ -26,7 +26,7 @@ jobs:
           SPLUNK_HOST: ${{ secrets.SPLUNK_HOST }}
           SPLUNK_PORT: ${{ secrets.SPLUNK_PORT }}
           SPLUNK_TOKEN: ${{ secrets.SPLUNK_TOKEN }}
-        run: python scripts/deploy_splunk.py
+        run: python scripts/deploy.py
 
       # STEP 2: Syncing Detections to IBM QRadar
       - name: Run QRadar Deployment
