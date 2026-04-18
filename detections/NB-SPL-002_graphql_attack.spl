@@ -1,4 +1,4 @@
-index=web_logs host="novruzbank.site"
+index=* source="/var/log/nginx/access.log"
     (uri="/graphql" OR uri="/api/graphql" OR uri="/graphql/")
 
 | rex field=_raw "(?i)(?P<gql_pattern>
