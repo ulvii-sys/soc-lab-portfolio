@@ -1,0 +1,6 @@
+index=main host="ubuntu-s-4vcpu-8gb-sfo3-01" sshd "Failed password"
+| rex field=_raw "from (?<attacker_ip>[^\s]+) port"
+| stats count as failure_count, values(user) as attempted_users, earliest(_time) as first_attempt, latest(_time) as last_attempt by attacker_ip
+| where failure_count > 10
+| fieldformat first_attempt = strftime(first_attempt, "%Y-%m-%d %H:%M:%S")
+| fieldformat last_attempt = strftime(last_attempt, "%Y-%m-%d %H:%M:%S")
