@@ -1,21 +1,32 @@
 index=* source="/var/log/nginx/access.log"
-| stats count as request_count, values(uri) as targeted_endpoints, values(status) as responses by clientip, useragent
-| where request_count >= 20
+uri="/api/ai/chat/anonymous"
+| bucket _time span=5m
+| stats
+    count                   as request_count,
+    dc(useragent)           as unique_agents,
+    values(useragent)       as agents
+    by _time, clientip
+| where request_count >= 15
 | eval
-    attack_type=case(
-        request_count>=100, "JWT Brute Force - High Volume",
-        request_count>=50,  "JWT Brute Force - Medium",
-        true(),             "JWT None Algorithm Attack"),
-    severity=case(
-        request_count>=100, "CRITICAL",
-        request_count>=50,  "HIGH",
-        true(),             "MEDIUM"),
-    mitre_id="T1550.001",
-    mitre_technique="Use Alternate Authentication Material",
-    mitre_tactic="TA0008 - Lateral Movement",
-    rule_id="NB-SPL-003",
-    remediation="1. alg=none red et: algorithms=['RS256'] | 2. Token blacklist-e elave et | 3. Sessionlari sonlandir | 4. Secret rotate et"
+    is_bot = if(match(mvjoin(agents," "), "(?i)curl|python|wget|scanner|bot"), "YES", "NO"),
+    attack_type = case(
+        is_bot=="YES" AND request_count>=30, "JWT Brute Force - Automated Tool",
+        is_bot=="YES",                        "JWT Anomaly - Bot Detected",
+        request_count>=30,                    "JWT High Volume Attack",
+        true(),                               "JWT Suspicious Activity"),
+    severity = case(
+        is_bot=="YES" AND request_count>=30, "CRITICAL",
+        is_bot=="YES",                        "HIGH",
+        request_count>=30,                    "HIGH",
+        true(),                               "MEDIUM"),
+    mitre_id    = "T1550.001",
+    mitre_technique = "Use Alternate Authentication Material",
+    mitre_tactic    = "TA0008 - Lateral Movement",
+    rule_id     = "NB-SPL-003",
+    remediation = "1. alg=none red et: algorithms=['RS256'] | 2. Token blacklist-e elave et | 3. Sessionlari sonlandir | 4. Secret rotate et"
 | where severity IN ("HIGH","CRITICAL")
-| table clientip, request_count, attack_type, severity,
-    targeted_endpoints, mitre_id, rule_id, remediation
+| table
+    _time, clientip, request_count, is_bot,
+    attack_type, severity, agents,
+    mitre_id, rule_id, remediation
 | sort - request_count
