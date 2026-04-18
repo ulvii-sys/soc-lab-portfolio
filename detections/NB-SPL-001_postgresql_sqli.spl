@@ -1,0 +1,76 @@
+| Commentary ----------------------------------------------------------------
+| Rule ID    : NB-SPL-001
+| Rule Name  : PostgreSQL SQL Injection Detection
+| Author     : SOC Lab Team
+| Date       : 2026-04-18
+| Version    : 1.0
+| MITRE      : T1190 - Exploit Public-Facing Application
+| Tactic     : TA0001 - Initial Access
+| Severity   : MEDIUM / HIGH / CRITICAL
+| Target     : novruzbank.site (Flask + PostgreSQL)
+| Description: Flask/PostgreSQL arxitekturasina xas SQLi patternleri
+|              askarlamaq ucun optimizasiya edilmis rule.
+|              PostgreSQL-e xas funksiyalar (pg_sleep, pg_tables) daxildir.
+| ---------------------------------------------------------------------------
+
+index=web_logs host="novruzbank.site"
+| rex field=uri "(?i)(?P<sqli_pattern>
+    (\%27|\')|
+    (\-\-|\%23|\#)|
+    (union\s+select)|
+    (select\s+.*\s+from)|
+    (insert\s+into)|
+    (drop\s+table)|
+    (pg_sleep)|
+    (pg_tables)|
+    (pg_stat_activity)|
+    (information_schema)|
+    (cast\s*\()|
+    (1\s*=\s*1)|
+    (or\s+1\s*=\s*1)|
+    (and\s+1\s*=\s*1)
+  )"
+
+| where isnotnull(sqli_pattern)
+
+| eval attack_time = strftime(_time, "%Y-%m-%d %H:%M:%S")
+
+| stats
+    count                   as attempt_count,
+    values(sqli_pattern)    as patterns,
+    values(uri)             as targeted_uris,
+    values(status)          as http_responses,
+    first(attack_time)      as first_seen,
+    last(attack_time)       as last_seen
+    by src_ip, http_user_agent
+
+| where attempt_count >= 3
+
+| eval
+    severity = case(
+        attempt_count >= 20, "CRITICAL",
+        attempt_count >= 10, "HIGH",
+        attempt_count >= 3,  "MEDIUM",
+        true(),              "LOW"),
+
+    mitre_id        = "T1190",
+    mitre_technique = "Exploit Public-Facing Application",
+    mitre_tactic    = "TA0001 - Initial Access",
+    rule_id         = "NB-SPL-001",
+
+    remediation     = "
+        1. src_ip-ni derhral blokla: sudo ufw deny from SRC_IP to any |
+        2. PostgreSQL-de subheli sorgulari yoxla: SELECT * FROM pg_stat_activity WHERE state=active |
+        3. Splunk-da IP tarixcesine bax: index=web_logs src_ip=X.X.X.X |
+        4. Flask-da butun DB sorguların prepared statement istifade etdiyini yoxla |
+        5. Tesirlenmis cedvellerin backup-ini yoxla"
+
+| where severity IN ("HIGH", "CRITICAL")
+
+| table
+    attack_time, src_ip, attempt_count, severity,
+    patterns, targeted_uris, http_responses,
+    first_seen, last_seen,
+    mitre_id, mitre_technique, rule_id, remediation
+
+| sort - attempt_count
