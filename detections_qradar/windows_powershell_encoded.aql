@@ -1,7 +1,5 @@
-SELECT "Process Name", "Process Command Line", sourceip, username
+SELECT sourceip, username, UTF8(payload) as "Raw_Log"
 FROM events
-WHERE qid = 5000125 
-  AND "Process Name" ILIKE '%powershell.exe%'
-  AND ("Process Command Line" ILIKE '%-enc%' OR "Process Command Line" ILIKE '%-EncodedCommand%')
-GROUP BY "Process Command Line", sourceip
+WHERE UTF8(payload) ILIKE '%powershell.exe%'
+  AND (UTF8(payload) ILIKE '%-enc%' OR UTF8(payload) ILIKE '%-EncodedCommand%')
 LAST 24 HOURS
