@@ -1,4 +1,4 @@
-name: Deploy Splunk Rules
+name: Multi-SIEM Detection Sync (Splunk & QRadar)
 
 on:
   push:
@@ -18,11 +18,19 @@ jobs:
           python-version: '3.x'
 
       - name: Install Dependencies
-        run: pip install requests
+        run: pip install requests urllib3
 
-      - name: Run Deploy Script
+      # STEP 1: Syncing Detections to Splunk
+      - name: Run Splunk Deployment
         env:
           SPLUNK_HOST: ${{ secrets.SPLUNK_HOST }}
           SPLUNK_PORT: ${{ secrets.SPLUNK_PORT }}
           SPLUNK_TOKEN: ${{ secrets.SPLUNK_TOKEN }}
-        run: python scripts/deploy.py
+        run: python scripts/deploy_splunk.py
+
+      # STEP 2: Syncing Detections to IBM QRadar
+      - name: Run QRadar Deployment
+        env:
+          QRADAR_HOST: ${{ secrets.QRADAR_HOST }}
+          QRADAR_TOKEN: ${{ secrets.QRADAR_TOKEN }}
+        run: python scripts/deploy_qradar.py
