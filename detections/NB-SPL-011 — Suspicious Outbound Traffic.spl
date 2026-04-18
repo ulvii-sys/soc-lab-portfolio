@@ -1,0 +1,18 @@
+index=* (source="/var/log/ufw.log" OR source="/var/log/kern.log") "UFW BLOCK" OR "UFW ALLOW"
+| rex "SRC=(?P<src_ip>[0-9\.]+)\s+DST=(?P<dst_ip>[0-9\.]+).*DPT=(?P<dest_port>[0-9]+)"
+| where src_ip="UBUNTU_SERVER_LOKAL_IP_BURAYA" AND NOT dest_port IN ("80", "443", "53", "123")
+| eval attack_time = strftime(_time, "%Y-%m-%d %H:%M:%S")
+| stats 
+    count as connection_attempts,
+    values(dest_port) as targeted_ports,
+    values(dst_ip) as malicious_c2_ips
+    by attack_time, host, src_ip
+| eval 
+    attack_type = "Suspicious Outbound Connection (Potential Reverse Shell / C2 Beacon)",
+    severity = "CRITICAL",
+    mitre_id = "T1090",
+    mitre_technique = "Proxy: External Proxy / Reverse Shell",
+    mitre_tactic = "TA0011 - Command and Control",
+    rule_id = "NB-SPL-015",
+    recommended_action = "1. Block Destination IP in Firewall | 2. Identify the process initiating the connection (`netstat -tulpn`) | 3. Assume server compromise"
+| table attack_time, host, src_ip, malicious_c2_ips, targeted_ports, connection_attempts, attack_type, severity, mitre_id, rule_id, recommended_action
