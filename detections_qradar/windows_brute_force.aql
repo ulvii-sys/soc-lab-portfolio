@@ -1,6 +1,6 @@
-SELECT "Target User", sourceip, COUNT(*) as "Login_Failures"
+SELECT username, sourceip, COUNT(*) as "Login_Failures"
 FROM events
-WHERE qid = 5000125 AND "Event ID" = 4625
-GROUP BY "Target User", sourceip
+WHERE qid = 5000125
+GROUP BY username, sourceip
 HAVING "Login_Failures" > 10
 LAST 30 MINUTES
