@@ -3,6 +3,7 @@ index=* source="/var/log/nginx/access.log"
     (\%27|\')|
     (\-\-|\%23|\#)|
     (union\s+select)|
+    (UNION\s+SELECT)|
     (select\s+.*\s+from)|
     (insert\s+into)|
     (drop\s+table)|
@@ -15,11 +16,8 @@ index=* source="/var/log/nginx/access.log"
     (or\s+1\s*=\s*1)|
     (and\s+1\s*=\s*1)
   )"
-
 | where isnotnull(sqli_pattern)
-
-| eval attack_time = strftime(_time, "%Y-%m-%d %H:%M:%S")
-
+| eval attack_time=strftime(_time,"%Y-%m-%d %H:%M:%S")
 | stats
     count                   as attempt_count,
     values(sqli_pattern)    as patterns,
@@ -27,35 +25,23 @@ index=* source="/var/log/nginx/access.log"
     values(status)          as http_responses,
     first(attack_time)      as first_seen,
     last(attack_time)       as last_seen
-    by src_ip, http_user_agent
-
+    by clientip, useragent
 | where attempt_count >= 3
-
 | eval
-    severity = case(
-        attempt_count >= 20, "CRITICAL",
-        attempt_count >= 10, "HIGH",
-        attempt_count >= 3,  "MEDIUM",
-        true(),              "LOW"),
-
-    mitre_id        = "T1190",
-    mitre_technique = "Exploit Public-Facing Application",
-    mitre_tactic    = "TA0001 - Initial Access",
-    rule_id         = "NB-SPL-001",
-
-    remediation     = "
-        1. src_ip-ni derhral blokla: sudo ufw deny from SRC_IP to any |
-        2. PostgreSQL-de subheli sorgulari yoxla: SELECT * FROM pg_stat_activity WHERE state=active |
-        3. Splunk-da IP tarixcesine bax: index=web_logs src_ip=X.X.X.X |
-        4. Flask-da butun DB sorguların prepared statement istifade etdiyini yoxla |
-        5. Tesirlenmis cedvellerin backup-ini yoxla"
-
-| where severity IN ("HIGH", "CRITICAL")
-
+    severity=case(
+        attempt_count>=20, "CRITICAL",
+        attempt_count>=10, "HIGH",
+        attempt_count>=3,  "MEDIUM",
+        true(),            "LOW"),
+    mitre_id="T1190",
+    mitre_technique="Exploit Public-Facing Application",
+    mitre_tactic="TA0001 - Initial Access",
+    rule_id="NB-SPL-001",
+    remediation="1. clientip-ni blokla: sudo ufw deny from CLIENTIP to any | 2. PostgreSQL-de subheli sorgulari yoxla: SELECT * FROM pg_stat_activity WHERE state=active | 3. Flask-da prepared statement istifade etdiyini yoxla | 4. Tesirlenmis cedvellerin backup-ini yoxla"
+| where severity IN ("HIGH","CRITICAL")
 | table
-    attack_time, src_ip, attempt_count, severity,
+    attack_time, clientip, attempt_count, severity,
     patterns, targeted_uris, http_responses,
     first_seen, last_seen,
     mitre_id, mitre_technique, rule_id, remediation
-
 | sort - attempt_count
