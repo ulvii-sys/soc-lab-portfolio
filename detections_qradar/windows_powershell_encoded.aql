@@ -1,0 +1,7 @@
+SELECT "Process Name", "Process Command Line", sourceip, username
+FROM events
+WHERE qid = 5000125 
+  AND "Process Name" ILIKE '%powershell.exe%'
+  AND ("Process Command Line" ILIKE '%-enc%' OR "Process Command Line" ILIKE '%-EncodedCommand%')
+GROUP BY "Process Command Line", sourceip
+LAST 24 HOURS
