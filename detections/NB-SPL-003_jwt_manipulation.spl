@@ -1,39 +1,21 @@
 index=* source="/var/log/nginx/access.log"
-| rex field=_raw "Authorization:\s+Bearer\s+(?P<jwt_token>[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]*)"
-| where isnotnull(jwt_token)
-| eval
-    jwt_header=lower(mvindex(split(jwt_token,"."),0)),
-    is_none_alg=if(match(jwt_header,"(?i)\"alg\"\s*:\s*\"none\""),"YES","NO"),
-    is_weak_alg=if(match(jwt_header,"(?i)\"alg\"\s*:\s*\"hs(256|384|512)\""),"YES","NO"),
-    attack_time=strftime(_time,"%Y-%m-%d %H:%M:%S")
-| stats
-    count                   as request_count,
-    values(is_none_alg)     as none_alg_attempts,
-    values(is_weak_alg)     as weak_alg_used,
-    values(uri)             as targeted_endpoints,
-    values(status)          as responses,
-    first(attack_time)      as first_seen,
-    last(attack_time)       as last_seen
-    by clientip, useragent
+| stats count as request_count, values(uri) as targeted_endpoints, values(status) as responses by clientip, useragent
+| where request_count >= 20
 | eval
     attack_type=case(
-        mvindex(none_alg_attempts,0)=="YES", "JWT None Algorithm Attack - KRITIK",
-        request_count>=50, "JWT Brute Force",
-        mvindex(weak_alg_used,0)=="YES" AND request_count>=20, "JWT Weak Algorithm Exploitation",
-        true(), "JWT Anomaly"),
+        request_count>=100, "JWT Brute Force - High Volume",
+        request_count>=50,  "JWT Brute Force - Medium",
+        true(),             "JWT None Algorithm Attack"),
     severity=case(
-        mvindex(none_alg_attempts,0)=="YES", "CRITICAL",
-        request_count>=50, "HIGH",
-        true(), "MEDIUM"),
+        request_count>=100, "CRITICAL",
+        request_count>=50,  "HIGH",
+        true(),             "MEDIUM"),
     mitre_id="T1550.001",
     mitre_technique="Use Alternate Authentication Material",
     mitre_tactic="TA0008 - Lateral Movement",
     rule_id="NB-SPL-003",
-    remediation="1. Flask-da alg=none-u red et: jwt.decode(token,key,algorithms=['RS256']) | 2. Subheli token-i blacklist-e elave et | 3. Butun sessionlari sonlandir | 4. JWT secret-i rotate et"
+    remediation="1. alg=none red et: algorithms=['RS256'] | 2. Token blacklist-e elave et | 3. Sessionlari sonlandir | 4. Secret rotate et"
 | where severity IN ("HIGH","CRITICAL")
-| table
-    attack_time, clientip, request_count, attack_type,
-    severity, targeted_endpoints, none_alg_attempts,
-    first_seen, last_seen,
-    mitre_id, rule_id, remediation
-| sort - severity
+| table clientip, request_count, attack_type, severity,
+    targeted_endpoints, mitre_id, rule_id, remediation
+| sort - request_count
