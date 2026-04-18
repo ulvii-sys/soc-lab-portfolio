@@ -1,4 +1,4 @@
-index=web_logs host="novruzbank.site"
+index=* source="/var/log/nginx/access.log"
 | rex field=uri "(?i)(?P<sqli_pattern>
     (\%27|\')|
     (\-\-|\%23|\#)|
