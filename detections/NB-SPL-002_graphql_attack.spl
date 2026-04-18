@@ -1,6 +1,5 @@
 index=* source="/var/log/nginx/access.log"
     (uri="/graphql" OR uri="/api/graphql" OR uri="/graphql/")
-
 | rex field=_raw "(?i)(?P<gql_pattern>
     (__schema)|
     (__type)|
@@ -10,11 +9,7 @@ index=* source="/var/log/nginx/access.log"
     (query\s*\{.*query\s*\{)|
     (fragment\s+.*\s+on)
   )"
-
-| eval
-    body_size   = tonumber(bytes),
-    attack_time = strftime(_time, "%Y-%m-%d %H:%M:%S")
-
+| eval body_size=tonumber(bytes), attack_time=strftime(_time,"%Y-%m-%d %H:%M:%S")
 | stats
     count                   as request_count,
     sum(body_size)          as total_bytes,
@@ -22,43 +17,27 @@ index=* source="/var/log/nginx/access.log"
     dc(uri)                 as unique_endpoints,
     first(attack_time)      as first_seen,
     last(attack_time)       as last_seen
-    by src_ip, method
-
+    by clientip, method
 | eval
-    attack_type = case(
-        match(mvjoin(attack_patterns, " "), "(?i)__schema|introspection"),
-            "GraphQL Schema Enumeration",
-        request_count >= 50,
-            "GraphQL Batch DoS Attack",
-        match(mvjoin(attack_patterns, " "), "(?i)mutation"),
-            "GraphQL Unauthorized Mutation",
-        true(),
-            "GraphQL Anomaly"),
-
-    severity = case(
-        request_count >= 100, "CRITICAL",
-        request_count >= 50,  "HIGH",
-        request_count >= 10,  "MEDIUM",
-        true(),               "LOW"),
-
-    mitre_id        = "T1190",
-    mitre_technique = "Exploit Public-Facing Application",
-    mitre_tactic    = "TA0001 - Initial Access",
-    rule_id         = "NB-SPL-002",
-
-    remediation     = "
-        1. Flask-da introspection-u production-da sondur: app=Graphene(...,introspection=False) |
-        2. Nginx-de GraphQL-e rate limit qur: limit_req_zone rate=10r/s |
-        3. Query depth limitini qur - max 5 seviyye |
-        4. Batch sorgulari mehdudasdir - max 10 sorgu/request |
-        5. src_ip-ni blokla ve butun sorgu loglarini yoxla"
-
-| where severity IN ("MEDIUM", "HIGH", "CRITICAL")
-
+    attack_type=case(
+        match(mvjoin(attack_patterns," "),"(?i)__schema|introspection"), "GraphQL Schema Enumeration",
+        request_count>=50, "GraphQL Batch DoS Attack",
+        match(mvjoin(attack_patterns," "),"(?i)mutation"), "GraphQL Unauthorized Mutation",
+        true(), "GraphQL Anomaly"),
+    severity=case(
+        request_count>=100, "CRITICAL",
+        request_count>=50,  "HIGH",
+        request_count>=10,  "MEDIUM",
+        true(),             "LOW"),
+    mitre_id="T1190",
+    mitre_technique="Exploit Public-Facing Application",
+    mitre_tactic="TA0001 - Initial Access",
+    rule_id="NB-SPL-002",
+    remediation="1. Flask-da introspection-u sondur: app=Graphene(...,introspection=False) | 2. Nginx-de GraphQL-e rate limit qur | 3. Query depth limitini qur - max 5 seviyye | 4. clientip-ni blokla"
+| where severity IN ("MEDIUM","HIGH","CRITICAL")
 | table
-    attack_time, src_ip, request_count, attack_type,
+    attack_time, clientip, request_count, attack_type,
     severity, attack_patterns, total_bytes,
     first_seen, last_seen,
     mitre_id, rule_id, remediation
-
 | sort - request_count
