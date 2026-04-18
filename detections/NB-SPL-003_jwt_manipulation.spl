@@ -1,4 +1,4 @@
-index=web_logs host="novruzbank.site"
+index=* source="/var/log/nginx/access.log"
 
 | rex field=_raw
     "Authorization:\s+Bearer\s+(?P<jwt_token>[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]*)"
