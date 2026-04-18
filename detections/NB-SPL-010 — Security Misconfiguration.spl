@@ -1,22 +1,30 @@
-index=* source="/var/log/nginx/access.log" status IN ("200", "206")
-| rex field=uri "(?i)(?P<sensitive_file>(\.env|\.git\/|config\.php|backup\.zip|dump\.sql|\.bak|\.old|docker-compose\.yml))"
+index=* source="/var/log/nginx/access.log"
+| rex field=uri "(?i)(?P<sensitive_file>(\.env|\.git|config\.php|backup\.zip|dump\.sql|\.bak|\.old|docker-compose\.yml))"
 | where isnotnull(sensitive_file)
-| stats 
-    count as access_count,
-    values(sensitive_file) as accessed_files,
-    values(uri) as full_uris,
-    earliest(_time) as window_start_epoch,
-    latest(_time) as window_end_epoch
+| stats
+    count                       as access_count,
+    values(sensitive_file)      as accessed_files,
+    values(uri)                 as full_uris,
+    values(status)              as responses,
+    earliest(_time)             as window_start_epoch,
+    latest(_time)               as window_end_epoch
     by clientip, useragent
-| eval 
-    window_start = strftime(window_start_epoch, "%Y-%m-%d %H:%M:%S"),
-    window_end = strftime(window_end_epoch, "%Y-%m-%d %H:%M:%S"),
-    severity = if(match(mvjoin(accessed_files, " "), "(?i)(\.env|\.git\/|config\.php)"), "CRITICAL", "HIGH"),
-    attack_type = "Exposure of Sensitive Source Code / Configurations",
-    mitre_id = "T1552",
-    mitre_technique = "Unsecured Credentials",
-    mitre_tactic = "TA0006 - Credential Access",
-    rule_id = "NB-SPL-010",
-    recommended_action = "1. Immediate incident response required | 2. Rotate ALL secrets/DB credentials exposed in accessed files | 3. Block external access to hidden files via Nginx location blocks"
-| table window_start, window_end, clientip, access_count, attack_type, severity, accessed_files, full_uris, mitre_id, rule_id, recommended_action
+| eval
+    window_start=strftime(window_start_epoch,"%Y-%m-%d %H:%M:%S"),
+    window_end=strftime(window_end_epoch,"%Y-%m-%d %H:%M:%S"),
+    severity=case(
+        match(mvjoin(responses," "),"200|206") AND match(mvjoin(accessed_files," "),"(?i)\.env|\.git|config\.php"), "CRITICAL",
+        match(mvjoin(responses," "),"200|206"), "HIGH",
+        true(), "MEDIUM"),
+    attack_type="Sensitive File Enumeration / Exposure",
+    mitre_id="T1552",
+    mitre_technique="Unsecured Credentials",
+    mitre_tactic="TA0006 - Credential Access",
+    rule_id="NB-SPL-010",
+    recommended_action="1. Nginx-de hidden file access blokla | 2. Movcud oldugu halda credentials rotate et | 3. clientip blokla"
+| where access_count >= 3
+| table
+    window_start, window_end, clientip, access_count,
+    attack_type, severity, accessed_files, full_uris, responses,
+    mitre_id, rule_id, recommended_action
 | sort - severity
