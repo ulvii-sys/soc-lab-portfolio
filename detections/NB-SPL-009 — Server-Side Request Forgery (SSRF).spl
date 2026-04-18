@@ -1,0 +1,23 @@
+index=* source="/var/log/nginx/access.log"
+| rex field=uri "(?i)(?P<ssrf_pattern>(url=|uri=|path=|dest=|target=).*(169\.254\.169\.254|127\.0\.0\.1|localhost|file:\/\/|gopher:\/\/|dict:\/\/))"
+| where isnotnull(ssrf_pattern)
+| stats 
+    count as attempt_count,
+    values(ssrf_pattern) as payloads,
+    values(uri) as targeted_uris,
+    values(status) as http_responses,
+    earliest(_time) as window_start_epoch,
+    latest(_time) as window_end_epoch
+    by clientip, useragent
+| eval 
+    window_start = strftime(window_start_epoch, "%Y-%m-%d %H:%M:%S"),
+    window_end = strftime(window_end_epoch, "%Y-%m-%d %H:%M:%S"),
+    target_env = if(match(mvjoin(payloads, " "), "169\.254"), "Cloud Metadata (AWS/DO)", "Internal Network/Localhost"),
+    severity = "HIGH",
+    attack_type = "SSRF Target Enumeration",
+    mitre_id = "T1190",
+    mitre_technique = "Exploit Public-Facing Application",
+    mitre_tactic = "TA0001 - Initial Access",
+    rule_id = "NB-SPL-009",
+    recommended_action = "1. Block source IP | 2. Restrict server egress traffic to metadata services (IMDSv2) | 3. Implement URL allow-listing for outbound requests"
+| table window_start, window_end, clientip, attempt_count, target_env, attack_type, severity, payloads, targeted_uris, http_responses, mitre_id, rule_id, recommended_action
