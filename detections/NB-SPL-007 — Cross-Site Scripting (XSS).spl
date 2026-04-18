@@ -1,0 +1,28 @@
+index=* source="/var/log/nginx/access.log"
+| rex field=uri "(?i)(?P<xss_pattern>(<script>|\%3Cscript\%3E|javascript:|onerror\s*=|onload\s*=|alert\(|document\.cookie|prompt\())"
+| where isnotnull(xss_pattern)
+| bucket _time span=5m
+| stats 
+    count as attempt_count,
+    values(xss_pattern) as payloads,
+    values(uri) as targeted_uris,
+    values(status) as http_responses,
+    earliest(_time) as window_start_epoch,
+    latest(_time) as window_end_epoch
+    by _time, clientip, useragent
+| eval 
+    window_start = strftime(window_start_epoch, "%Y-%m-%d %H:%M:%S"),
+    window_end = strftime(window_end_epoch, "%Y-%m-%d %H:%M:%S"),
+    attack_type = if(attempt_count >= 15, "Automated XSS Fuzzing", "Targeted XSS Attempt"),
+    severity = case(
+        attempt_count >= 15, "HIGH",
+        1==1, "MEDIUM"
+    ),
+    mitre_id = "T1189",
+    mitre_technique = "Drive-by Compromise",
+    mitre_tactic = "TA0001 - Initial Access",
+    rule_id = "NB-SPL-007",
+    recommended_action = "1. Block source IP at WAF | 2. Ensure Context-Aware Output Encoding is enforced on backend | 3. Implement Strict Content Security Policy (CSP)"
+| where severity IN ("MEDIUM", "HIGH")
+| table window_start, window_end, clientip, attempt_count, attack_type, severity, payloads, targeted_uris, http_responses, mitre_id, rule_id, recommended_action
+| sort - severity, - attempt_count
