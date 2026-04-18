@@ -1,43 +1,33 @@
 index=* source="/var/log/nginx/access.log"
-| rex field=uri "(?i)(?P<ssti_pattern>
-    (\{\{.*\}\})|
-    (\{%.*%\})|
-    (\$\{.*\})|
-    (__class__)|
-    (__mro__)|
-    (__subclasses__)|
-    (__globals__)|
-    (__builtins__)|
-    (request\.environ)|
-    (config\.items)|
-    (lipsum|cycler|joiner|namespace)
-  )"
-| where isnotnull(ssti_pattern)
-| eval attack_time=strftime(_time,"%Y-%m-%d %H:%M:%S")
+uri="/register"
+| bucket _time span=5m
 | stats
     count                   as attempt_count,
-    values(ssti_pattern)    as payloads,
-    values(uri)             as targeted_uris,
-    values(status)          as http_responses,
-    first(attack_time)      as first_seen,
-    last(attack_time)       as last_seen
-    by clientip, useragent
+    values(status)          as responses,
+    dc(useragent)           as unique_agents,
+    values(useragent)       as agents
+    by _time, clientip
+| where attempt_count >= 5
 | eval
-    rce_risk=if(match(mvjoin(payloads," "),"(?i)__class__|__mro__|__subclasses__|__globals__|__builtins__"),
-        "YUKSEK - RCE Mumkundur!","ASAGI"),
+    is_bot=if(match(mvjoin(agents," "),"(?i)curl|python|wget|scanner"),"YES","NO"),
+    attack_type=case(
+        is_bot=="YES" AND attempt_count>=10, "SSTI Attempt - Automated Tool",
+        is_bot=="YES",                        "SSTI Bot Detected",
+        attempt_count>=20,                    "SSTI High Volume",
+        true(),                               "SSTI Suspicious Registration"),
     severity=case(
-        rce_risk=="YUKSEK - RCE Mumkundur!", "CRITICAL",
-        attempt_count>=5, "HIGH",
-        true(), "MEDIUM"),
+        is_bot=="YES" AND attempt_count>=10, "CRITICAL",
+        is_bot=="YES",                        "HIGH",
+        attempt_count>=20,                    "HIGH",
+        true(),                               "MEDIUM"),
     mitre_id="T1059",
     mitre_technique="Command and Scripting Interpreter",
     mitre_tactic="TA0002 - Execution",
     rule_id="NB-SPL-004",
-    remediation="1. DERHRAL clientip blokla - RCE riski var: sudo ufw deny from CLIENTIP | 2. Serverde subheli prosesleri yoxla: ps aux | grep python | 3. Jinja2 sandbox aktiv et | 4. render_template_string(user_input) istifadesini render_template() ile evez et"
+    remediation="1. clientip blokla | 2. Jinja2 sandbox aktiv et | 3. render_template_string evez et | 4. Input validation elave et"
 | where severity IN ("HIGH","CRITICAL")
 | table
-    attack_time, clientip, attempt_count, rce_risk,
-    severity, payloads, targeted_uris, http_responses,
-    first_seen, last_seen,
-    mitre_id, rule_id, remediation
-| sort - severity
+    _time, clientip, attempt_count, is_bot,
+    attack_type, severity, agents,
+    mitre_id, mitre_technique, rule_id, remediation
+| sort - attempt_count
