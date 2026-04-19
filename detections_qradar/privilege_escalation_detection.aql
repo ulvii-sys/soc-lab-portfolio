@@ -1,4 +1,13 @@
-SELECT * FROM events
-WHERE EventID = '4672'
-AND username NOT IN ('SYSTEM', 'LOCAL SERVICE', 'NETWORK SERVICE')
+SELECT 
+    username, 
+    sourceip, 
+    qidname(qid) AS Event_Name, 
+    logsourcename(logsourceid) AS Log_Source_Name,
+    DATEFORMAT(starttime, 'YYYY-MM-dd HH:mm:ss') AS Exact_Time,
+    payload 
+FROM events 
+WHERE eventid = '4672' 
+AND username NOT IN ('SYSTEM', 'LOCAL SERVICE', 'NETWORK SERVICE', 'ANONYMOUS LOGON') 
+AND username NOT ILIKE '%$' 
+ORDER BY starttime DESC 
 LAST 1 HOURS
