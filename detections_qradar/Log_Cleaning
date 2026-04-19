@@ -1,0 +1,4 @@
+SELECT username, sourceip, logsourceid, qidname(qid) 
+FROM events 
+WHERE qidname(qid) ILIKE '%audit log cleared%' OR categoryname(category) ILIKE '%audit%cleared%' OR eventid IN ('1102', '104') 
+LAST 24 HOURS
