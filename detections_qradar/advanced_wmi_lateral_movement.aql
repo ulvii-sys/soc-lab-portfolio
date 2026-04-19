@@ -1,0 +1,12 @@
+SELECT username, sourceip, destinationip, Command, COUNT(*) AS exec_count
+FROM events
+WHERE EventID = '4688'
+AND (
+    LOWER(Command) LIKE '%wmic%'
+    OR LOWER(Command) LIKE '%win32_process%'
+)
+AND sourceip <> destinationip
+AND NOT LOWER(username) LIKE '%system%'
+GROUP BY username, sourceip, destinationip, Command
+HAVING COUNT(*) > 2
+LAST 1 HOURS
