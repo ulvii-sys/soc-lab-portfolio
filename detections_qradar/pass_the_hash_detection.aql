@@ -1,0 +1,5 @@
+SELECT * FROM events
+WHERE EventID = '4624'
+AND LogonType = '3'
+AND AuthenticationPackageName = 'NTLM'
+LAST 1 HOURS
