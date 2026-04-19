@@ -1,0 +1,14 @@
+SELECT username, sourceip, Command, COUNT(*) AS exec_count
+FROM events
+WHERE EventID = '4688'
+AND (
+    LOWER(Command) LIKE '%.dll%'
+    AND (
+        LOWER(Command) LIKE '%rundll32%'
+        OR LOWER(Command) LIKE '%regsvr32%'
+    )
+)
+AND NOT LOWER(Command) LIKE '%system32%'
+GROUP BY username, sourceip, Command
+HAVING COUNT(*) > 2
+LAST 1 HOURS
