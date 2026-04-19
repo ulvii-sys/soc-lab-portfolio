@@ -1,0 +1,6 @@
+SELECT sourceip, username, payload 
+FROM events 
+WHERE (qidname(qid) ILIKE '%process creation%' OR eventid = '4688' OR eventid = '1')
+AND (payload ILIKE '%\\AppData\\Local\\Temp\\%' OR payload ILIKE '%\\AppData\\Roaming\\%')
+AND payload ILIKE '%.exe%'
+LAST 24 HOURS
