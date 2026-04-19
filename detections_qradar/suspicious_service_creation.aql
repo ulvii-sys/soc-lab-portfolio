@@ -1,0 +1,4 @@
+SELECT * FROM events
+WHERE EventID = '7045'
+AND (LOWER(ServiceFileName) LIKE '%temp%' OR LOWER(ServiceFileName) LIKE '%appdata%')
+LAST 1 HOURS
