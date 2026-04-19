@@ -1,4 +1,12 @@
-SELECT username, sourceip, destinationip, qidname(qid)
-FROM events 
-WHERE qidname(qid) ILIKE '%disabled account%' OR eventid = '4725' OR eventid = '4625'
+SELECT username, sourceip, destinationip, COUNT(*) AS attempt_count
+FROM events
+WHERE LOGSOURCETYPENAME(devicetype) = 'Microsoft Windows Security Event Log'
+AND (
+    qidname(qid) ILIKE '%disabled account%'
+    OR (EventID = '4625' AND LOWER(failure_reason) LIKE '%disabled%')
+)
+AND username IS NOT NULL
+AND sourceip IS NOT NULL
+GROUP BY username, sourceip, destinationip
+HAVING COUNT(*) >= 3
 LAST 1 HOURS
