@@ -1,0 +1,7 @@
+SELECT sourceip, COUNT(*) as dns_requests 
+FROM events 
+WHERE (qidname(qid) ILIKE '%dns query%' OR destinationport = 53)
+AND sourceip <> '192.168.1.10' -- (Bura öz daxili DNS serverinizin IP-sini yazıb istisna edin)
+GROUP BY sourceip 
+HAVING dns_requests > 1500 
+LAST 15 MINUTES
