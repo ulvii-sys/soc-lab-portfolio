@@ -1,0 +1,1 @@
+ScriptBlockText="*System.Net.WebClient*" ScriptBlockText IN ("*.DownloadFile(*", "*.DownloadFileAsync(*", "*.DownloadString(*", "*.DownloadStringAsync(*")
