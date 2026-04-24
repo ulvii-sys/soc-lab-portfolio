@@ -1,0 +1,4 @@
+Image="*/curl"
+| rex field=CommandLine "(?<CommandLineMatch>\\s-[FTd]\\s)"
+| eval CommandLineCondition=if(isnotnull(CommandLineMatch), "true", "false")
+| search CommandLine IN ("* --form*", "* --upload-file *", "* --data *", "* --data-*") OR CommandLineCondition="true" NOT (CommandLine IN ("*://localhost*", "*://127.0.0.1*"))

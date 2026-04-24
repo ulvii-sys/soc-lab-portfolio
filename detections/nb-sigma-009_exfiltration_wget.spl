@@ -1,0 +1,1 @@
+type="EXECVE" a0="wget" a1="--post-file=*"
