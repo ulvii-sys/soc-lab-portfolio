@@ -1,0 +1,1 @@
+Image IN ("*/rm", "*/shred", "*/unlink") CommandLine IN ("*/var/log*", "*/var/spool/mail*")
