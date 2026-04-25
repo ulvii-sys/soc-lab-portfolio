@@ -1,0 +1,1 @@
+Image IN ("/bin/dd", "/usr/bin/dd") CommandLine="*of=*" CommandLine IN ("*if=/dev/zero*", "*if=/dev/null*")

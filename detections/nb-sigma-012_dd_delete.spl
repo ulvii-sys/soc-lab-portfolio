@@ -1,0 +1,1 @@
+type="EXECVE" a0="*dd*" a1 IN ("*if=/dev/null*", "*if=/dev/zero*")
