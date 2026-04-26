@@ -1,11 +1,12 @@
 {
-  "rule_name": "Honey User - svc_sql_admin Access",
-  "description": "Honey user-e giris cehdi askarlandı",
+  "rule_name": "Honey User - svc_sql_admin Access Detected",
+  "description": "Honey user-e giris cehdi - mutleq hucumcudur",
   "conditions": {
     "event_ids": [4624, 4625],
     "username": "svc_sql_admin"
   },
   "severity": "CRITICAL",
   "mitre_id": "T1078",
+  "mitre_technique": "Valid Accounts",
   "action": "CREATE_OFFENSE"
 }
