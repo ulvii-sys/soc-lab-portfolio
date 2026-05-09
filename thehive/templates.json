@@ -1,0 +1,89 @@
+[
+  {
+    "name": "Brute Force Attack",
+    "description": "Detects and responds to brute force attacks against SSH, RDP, or web authentication endpoints.",
+    "severity": 3,
+    "tags": ["SOC", "brute-force", "T1110", "authentication"],
+    "soar_integration": "Splunk alert triggers SOAR playbook which creates this TheHive case, enriches source IPs, and executes block actions upon confirmation.",
+    "tasks": [
+      {"title": "Triage: Validate Alert", "description": "Review source IP(s), targeted service, targeted username(s), and total attempt count.", "mandatory": true},
+      {"title": "Investigation: Check IP Reputation", "description": "Check reputation of source IP(s) against threat intelligence sources.", "mandatory": true},
+      {"title": "Investigation: Verify Successful Logins", "description": "Search authentication logs for any successful login from the same IP(s).", "mandatory": true},
+      {"title": "Decision: Malicious or Benign", "description": "If IP reputation score is high OR successful login found: MALICIOUS. Otherwise: FALSE POSITIVE.", "mandatory": true},
+      {"title": "Response: Block Source IP", "description": "Block the malicious source IP at firewall and/or WAF level.", "mandatory": false},
+      {"title": "Response: Lock Targeted Account", "description": "If successful login detected, disable the targeted user account.", "mandatory": false},
+      {"title": "Response: Add IP to Threat Intel", "description": "Submit confirmed malicious IP to internal threat intelligence platform.", "mandatory": false},
+      {"title": "Closure: Document and Close", "description": "Record final classification, actions taken, MITRE T1110, and lessons learned.", "mandatory": true}
+    ]
+  },
+  {
+    "name": "Phishing Email Incident",
+    "description": "Handles phishing email reports submitted by users or detected by email security gateway.",
+    "severity": 3,
+    "tags": ["SOC", "phishing", "T1566", "email", "social-engineering"],
+    "soar_integration": "SOAR playbook triggered by email gateway alert extracts URLs and file hashes, creates this TheHive case, and initiates enrichment and quarantine workflows.",
+    "tasks": [
+      {"title": "Triage: Collect Email Artifacts", "description": "Extract sender address, all URLs, attachment hashes, email headers (SPF/DKIM/DMARC).", "mandatory": true},
+      {"title": "Investigation: Analyze URLs", "description": "Check all extracted URLs against threat intelligence and URL reputation services.", "mandatory": true},
+      {"title": "Investigation: Analyze Attachments", "description": "Submit attachment file hashes for reputation lookup and sandbox analysis.", "mandatory": false},
+      {"title": "Investigation: Assess User Impact", "description": "Determine if recipient clicked links or opened attachments.", "mandatory": true},
+      {"title": "Decision: Malicious or Benign", "description": "If URL or attachment confirmed malicious OR user clicked: MALICIOUS. Otherwise: FALSE POSITIVE.", "mandatory": true},
+      {"title": "Response: Quarantine Email", "description": "Remove phishing email from all affected mailboxes.", "mandatory": false},
+      {"title": "Response: Contain Affected User Endpoint", "description": "If user clicked, isolate endpoint, reset credentials, revoke sessions.", "mandatory": false},
+      {"title": "Response: Block Malicious Indicators", "description": "Block URLs and domains at web proxy and DNS level.", "mandatory": false},
+      {"title": "Closure: Notify and Document", "description": "Notify affected users, record MITRE T1566, close case.", "mandatory": true}
+    ]
+  },
+  {
+    "name": "Malicious IP Activity",
+    "description": "Responds to detection of communication with known or suspected malicious IP addresses.",
+    "severity": 3,
+    "tags": ["SOC", "malicious-ip", "T1071", "C2", "exfiltration"],
+    "soar_integration": "Splunk correlation rule detects traffic to flagged IP, SOAR creates this TheHive case and checks IP reputation automatically.",
+    "tasks": [
+      {"title": "Triage: Identify Communication Details", "description": "Record source/destination IPs, ports, protocol, data volume, timestamps.", "mandatory": true},
+      {"title": "Investigation: Check IP Reputation", "description": "Query flagged IP against threat intelligence sources.", "mandatory": true},
+      {"title": "Investigation: Identify Affected Host", "description": "Identify internal host initiating suspicious traffic.", "mandatory": true},
+      {"title": "Investigation: Analyze Traffic Pattern", "description": "Determine if traffic matches C2 beaconing, exfiltration, or scanning.", "mandatory": true},
+      {"title": "Decision: Malicious or Benign", "description": "If IP confirmed malicious AND host shows compromise signs: MALICIOUS.", "mandatory": true},
+      {"title": "Response: Block Malicious IP", "description": "Block IP at firewall and endpoint level.", "mandatory": false},
+      {"title": "Response: Investigate Affected Host", "description": "Perform forensics on affected host.", "mandatory": false},
+      {"title": "Response: Add IoCs to Threat Intel", "description": "Submit confirmed malicious IP and associated indicators.", "mandatory": false},
+      {"title": "Closure: Document and Close", "description": "Record MITRE T1071, full timeline, affected assets.", "mandatory": true}
+    ]
+  },
+  {
+    "name": "Suspicious Login / Account Compromise",
+    "description": "Investigates anomalous authentication events such as logins from unusual geolocations or outside business hours.",
+    "severity": 3,
+    "tags": ["SOC", "account-compromise", "T1078", "identity", "insider-threat"],
+    "soar_integration": "SOAR playbook triggered by SIEM alert on anomalous login creates this TheHive case and enriches source IP and user context.",
+    "tasks": [
+      {"title": "Triage: Review Login Details", "description": "Collect login timestamp, source IP, geolocation, device, authentication method.", "mandatory": true},
+      {"title": "Investigation: Check Source IP", "description": "Verify reputation and geolocation of source IP.", "mandatory": true},
+      {"title": "Investigation: Verify User Activity", "description": "Review all actions performed by account after suspicious login.", "mandatory": true},
+      {"title": "Investigation: Check for Credential Exposure", "description": "Verify if credentials appeared in known data breaches.", "mandatory": true},
+      {"title": "Decision: Compromised or Legitimate", "description": "Contact user directly to confirm. If denied OR impossible travel: COMPROMISED.", "mandatory": true},
+      {"title": "Response: Disable Account and Revoke Sessions", "description": "Disable account, revoke all sessions and OAuth tokens.", "mandatory": false},
+      {"title": "Response: Contain and Investigate Endpoint", "description": "Isolate endpoint, perform forensic review.", "mandatory": false},
+      {"title": "Response: Notify and Remediate", "description": "Notify user, manager, IT team. Enable MFA.", "mandatory": false},
+      {"title": "Closure: Document and Close", "description": "Record MITRE T1078, root cause, full timeline.", "mandatory": true}
+    ]
+  },
+  {
+    "name": "False Positive Handling",
+    "description": "Structured workflow for reviewing, validating, and closing alerts determined to be false positives.",
+    "severity": 1,
+    "tags": ["SOC", "false-positive", "tuning", "alert-review"],
+    "soar_integration": "SOAR routes low-confidence alerts to this TheHive case when initial checks indicate benign activity.",
+    "tasks": [
+      {"title": "Triage: Review Alert Context", "description": "Review rule name, trigger conditions, involved entities, and raw log data.", "mandatory": true},
+      {"title": "Investigation: Validate Entities", "description": "Check entities against internal whitelists and known business processes.", "mandatory": true},
+      {"title": "Investigation: Check Historical Pattern", "description": "Search SIEM for historical occurrences of same alert for same entity.", "mandatory": true},
+      {"title": "Decision: Confirm False Positive", "description": "If activity fully explained by legitimate operations: FALSE POSITIVE. If doubt: escalate.", "mandatory": true},
+      {"title": "Response: Apply Suppression or Tuning", "description": "Create suppression rule in SIEM to prevent recurrence.", "mandatory": true},
+      {"title": "Response: Update Whitelist", "description": "Add confirmed safe entity to appropriate internal whitelist.", "mandatory": false},
+      {"title": "Closure: Document and Close", "description": "Record rationale, suppression action, improvement recommendations.", "mandatory": true}
+    ]
+  }
+]

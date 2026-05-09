@@ -1,0 +1,50 @@
+version: "3.8"
+services:
+
+  cassandra:
+    image: cassandra:4
+    restart: unless-stopped
+    environment:
+      - CASSANDRA_CLUSTER_NAME=thp
+      - CASSANDRA_DC=datacenter1
+      - MAX_HEAP_SIZE=1G
+      - HEAP_NEWSIZE=256M
+    volumes:
+      - cassandra_data:/var/lib/cassandra
+
+  elasticsearch:
+    image: elasticsearch:7.17.12
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+
+  thehive:
+    image: strangebee/thehive:5
+    restart: unless-stopped
+    depends_on:
+      - cassandra
+      - elasticsearch
+    ports:
+      - "9000:9000"
+    environment:
+      - JVM_OPTS=-Xms512m -Xmx1g
+    volumes:
+      - thehive_thehive_data:/opt/thehive/data
+    command:
+      - --secret
+      - "6rKHxdaDi6qrB04qsYkbY/1ovskZtl9GZGbp3m1w4DI="
+      - --cql-hostnames
+      - cassandra
+      - --index-backend
+      - elasticsearch
+      - --es-hostnames
+      - elasticsearch
+
+volumes:
+  cassandra_data:
+  es_data:
+  thehive_thehive_data:
